@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // User Avatars
+    match /avatars/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Chat Media & Voice Notes
+    match /chats/{conversationId}/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Status Stories
+    match /statuses/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Spiritual Audio Prayers, Scriptures, Reels, Videos, and Christian Music
+    match /spiritual/{resourceType}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
