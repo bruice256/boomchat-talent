@@ -15,8 +15,8 @@ import 'features/developer/developer_info_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase (safely wrapped so template works immediately)
+
+  // Initialize Firebase
   try {
     await Firebase.initializeApp();
   } catch (e) {
@@ -52,19 +52,10 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return const LoginScreen();
-    }
-
-    if (!user.emailVerified) {
-      return const EmailVerificationScreen();
-    }
-
-    return FutureBuilder(
-      future: AuthService().getUserProfile(user.uid),
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        // Still loading
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(
@@ -73,12 +64,38 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        final profile = snapshot.data;
-        if (profile == null || !profile.isProfileComplete) {
-          return const ProfileSetupScreen();
+        final user = snapshot.data;
+
+        // Not signed in
+        if (user == null) {
+          return const LoginScreen();
         }
 
-        return const MainNavigationScreen();
+        // Signed in but email not verified
+        if (!user.emailVerified) {
+          return const EmailVerificationScreen();
+        }
+
+        // Email verified — check profile
+        return FutureBuilder<UserModel?>(
+          future: AuthService().getUserProfile(user.uid),
+          builder: (context, profileSnap) {
+            if (profileSnap.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(color: AppTheme.primaryGold),
+                ),
+              );
+            }
+
+            final profile = profileSnap.data;
+            if (profile == null || !profile.isProfileComplete) {
+              return const ProfileSetupScreen();
+            }
+
+            return const MainNavigationScreen();
+          },
+        );
       },
     );
   }
